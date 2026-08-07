@@ -10,7 +10,7 @@ description: A mission is a single-agent execution contract — a durable, revie
 A **mission** is a contract between the user and an agent for one delegated chunk of work:
 
 1. **An execution contract** — it carries the decisions locked during the briefing
-   (`walkthrough`), plus exactly what the agent may do and how it behaves when things go
+   (using `walkthrough` only when meaningful decision forks existed), plus exactly what the agent may do and how it behaves when things go
    sideways. After sign-off, the agent executes **silently** against this contract without
    interrupting the user.
 2. **A review gate** — the agent cannot declare the work accepted. It marks the mission
@@ -19,7 +19,7 @@ A **mission** is a contract between the user and an agent for one delegated chun
    picks up exactly where the last left off. This is what ephemeral subagents cannot give you.
 
 This is the **"Silent execute"** stage of the work mode. The contract is produced by the
-briefing (`walkthrough`); the mission is where execution and review happen.
+briefing; the mission is where execution and review happen.
 
 ### What a mission is NOT
 This kind of system is often framed as "multiple agents self-organize and collaborate via
@@ -58,6 +58,13 @@ to it. Standalone, it is just a markdown file with these sections.)*
 ORACLE the pre-coding test gate and the code gate check tests/code against, so keep each
 item a checkable behavior, not prose. If none was given it shows `(see Context)`.>
 
+## Station Route
+<the signed per-station route, durable across sessions. Record every station as ON/OFF with
+its reason: mission · walkthrough · design-rt · bdd · bdd-rt · tdd · test-rt · coding · code-rt ·
+prove-done · accept-rt · review. Record each gate's confirmation mode (single/double), risk reason,
+and any parallel-isolation fields/integration mode. For accept-rt, explicitly record whether the
+mission is user-facing and why.>
+
 ## Context
 <self-contained briefing: goal, repo paths, the locked decisions from the walkthrough.
 Pretend the next agent has never seen this repo or your chat.>
@@ -79,13 +86,14 @@ own instead of interrupting the user: what it hit, what it chose, why, how to ov
 The user sweeps this at review. Empty at sign-off.>
 
 ## Verification Ledger
-<filled by the agent IMMEDIATELY BEFORE marking done, via the `prove-done` skill.
+<filled by the agent during the terminal verification phase. Use the `prove-done` skill when that
+station is ON; mechanical routes may use a compact evidence ledger.
 Five dimensions (Reach / Behavior / Regression / Observability / Honesty), each
 marked [a] run-verified, [b] compile-enforced, or [c] not verified. Any [c] item
 MUST be escalated to the user via Parked Decisions before done — silent proceed is forbidden.>
 
 ## Blocked
-<APPENDED when a mission is escalated to the user (e.g. an automated gate hit its
+<APPENDED when a mission is escalated to the user (e.g. the code gate `code-rt` hit its
 fix-cap with unresolved blocking findings). Records why + what the user must decide.
 A blocked mission cannot be marked done — release or cancel it.>
 
@@ -96,7 +104,10 @@ A blocked mission cannot be marked done — release or cancel it.>
 <async notes between agents — secondary; usually empty.>
 ```
 
-`Context` is required. The four execution-safety sections (`Commands` / `Open Assumptions` /
+For multi-mission work, the parent route reports `done/total`, plus open/claimed/blocked counts on each
+meaningful update. If decomposition discovers more missions, report the denominator change and reason.
+
+`Context` and `Station Route` are required. The four execution-safety sections (`Commands` / `Open Assumptions` /
 `Stop Conditions` / `Parked Decisions`) are what let the agent run without interrupting the
 user — include them for any non-trivial mission. `Verification Ledger` is the verification
 gate filled just before done (see `prove-done`).
@@ -122,25 +133,49 @@ mechanically enforced vs convention is environment-specific.)*
 ## Core workflow (single agent — the common case)
 
 ```
-1. (briefing) Produce the contract — usually via the `walkthrough` skill.
+1. Produce the signed route. Use `walkthrough` only when meaningful decisions need user alignment;
+   explicit work may create a contract directly, and small same-session work may skip a durable mission.
 2. Create the mission with full Context + safety sections.
 3. Claim the mission.
-4. Execute SILENTLY against the contract:
+4. Execute SILENTLY against the contract's recorded station route:
    - In-contract situations → follow the contract.
    - Out-of-contract uncertainty → take the conservative option, append to
      ## Parked Decisions, keep going. Do NOT interrupt the user.
    - Permission denied / blocked → skip + park. Tests fail → follow Stop Conditions.
-5. Before done: load `prove-done` and fill the ## Verification Ledger (5 dimensions).
+5. If BDD is on, consume the already gated scenarios and AC trace as the outer behavior contract.
+   If TDD is on, work per cohesive acceptance-criteria cluster: write the Red tests, run
+   `test-rt` to convergence, then implement that cluster. If TDD is off, implement directly
+   and retain the recorded skip reason.
+6. If the signed route includes the code gate, run `code-rt` using its recorded confirmation mode.
+   Behavior change makes the gate more likely but does not force it when targeted evidence closes the
+   realistic risk. At its cap with unresolved
+   blocking findings, the mission is **blocked**, not done.
+7. When the route includes full `prove-done`, run it before done. Every durable mission still fills the
+   required ## Verification Ledger; for mechanical work this may be a compact evidence record rather
+   than a manufactured behavior-verification station.
    Any unverified [c] items are escalated via ## Parked Decisions. No silent proceed.
-6. Mark done with a Result — what changed, how to verify, caveats.
-7. (review gate) User / reviewer reads diff + Parked Decisions + Verification Ledger → pass/reject.
-8. Update the parent work log with the outcome.
+8. If the signed route includes `accept-rt`, run it to convergence. User-facing work makes it more
+   likely but does not force it for directly verifiable low-risk presentation-only changes. If a finding
+    changes the artifact, rerun affected stations that were previously ON, then rerun accept-rt. If the
+    fix changes risk, contracts, or tooling, recalculate the route and activate any newly applicable
+    station for that new scope with the denominator change recorded.
+9. Mark done with a Result — what changed, how to verify, caveats.
+10. (review gate) User or a reviewer explicitly delegated by the user reads diff + Parked Decisions +
+    Verification Ledger → pass/reject. `passed` records delivery review; it never substitutes for the
+    user's product/acceptance sign-off.
+11. Update the parent work log with the outcome.
 ```
 
 Key rules:
 - **Every mission has a parent work item** (required).
 - **Context must be self-contained** — the next agent can't see your chat history.
+- **The contract durably records the complete signed Station Route.**
+- **Mission creation is itself optional in the-line.** Use this carrier when durability/delegation/
+  review value justifies it; do not wrap tiny same-session edits in a mission for ceremony.
+- **Every station is independently applicable.** A mission does not force walkthrough, BDD, TDD,
+  code-rt, or accept-rt; ON/OFF reasons remain explicit.
 - **The contract has 4 execution-safety sections + 1 verification gate.**
+- **Acceptance follows the signed route.** When ON, fixes loop back through every affected verification/gate station; user-facing status alone does not force the gate.
 - **Done / release work from any session** — finish a mission claimed in a previous conversation.
 - **After marking done, move on** — don't wait for review.
 - **Never interrupt the user mid-execution** — park instead.

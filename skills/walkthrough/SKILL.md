@@ -1,6 +1,6 @@
 ---
 name: walkthrough
-description: 'Align on a plan with the user by PROPOSING decisions, not interrogating them. Agent walks the decision tree top-down (architecture → module → contract → implementation), and at each node states its recommended choice + rationale + the alternatives it already considered + the assumptions it is unsure about. The user only marks ok / no / edit. Produces a signed-off execution contract. Use when starting non-trivial work or aligning before delegating. TRIGGER PHRASES (treat any as a request for this skill): "walk me through this" / "walk through this" / "walk it through" / "walk it".'
+description: 'Align on meaningful decisions with the user by PROPOSING answers, not interrogating them. Walk the real decision tree top-down and produce a signed execution contract. Use only when the task contains genuine product/design/architecture forks, expensive choices, or uncertainty that needs user alignment; explicit low-risk work may skip walkthrough even when the-line is active. TRIGGER PHRASES: "walk me through this" / "walk through this" / "walk it through" / "walk it".'
 ---
 
 # Walkthrough Skill: Propose, Don't Interrogate
@@ -36,6 +36,37 @@ afterward.
 recommended answer. If the agent has no recommendation, it has not done its
 homework yet — go explore the codebase, don't ask.
 
+## Role and public contract
+
+`walkthrough` is a **transparent composite Definition function**, not merely a decision collector:
+
+```text
+walkthrough(raw requirement, Definition Route)
+  -> decision discovery and resolution
+  -> design-rt
+  -> bdd when applicable
+  -> bdd-rt when independently enabled
+  -> explicit user sign-off
+  -> Signed Definition Bundle
+```
+
+It may be called directly or by `the-line`; both entrypoints use this same contract. A direct call
+uses an adaptive Definition Route unless the user pins a station. A `the-line` call supplies the
+already selected ON/OFF and confirmation decisions. Every nested call and result remains visible;
+`walkthrough` does not reimplement validator or BDD logic.
+
+**Input:** raw request, repository evidence, existing spec/constraints, and an optional Definition
+Route covering design gate, BDD mode, BDD gate, and confirmation.
+
+**Output:** a Signed Definition Bundle containing the Decision Ledger, acceptance criteria,
+non-behavior constraints, applicable scenarios and AC trace, the Definition Receipt, execution-safety
+sections, and implementation notes.
+
+**Explicit effects:** batched user decision interaction, durable writes to the Definition artifact
+(Decision Ledger, scenarios, receipt, and execution contract), fresh independent validator calls, and
+final user sign-off. Dependency installation and durable execution lifecycle transitions are excluded:
+`bdd-setup` and `mission` remain separate capabilities.
+
 ## When to load
 
 - Starting non-trivial work that needs the user aligned before execution.
@@ -43,8 +74,11 @@ homework yet — go explore the codebase, don't ask.
 - Before delegating a chunk of work to another agent/session (produce the contract first).
 - When a request is big enough that you'd otherwise interrupt the user repeatedly mid-build.
 
-Do **not** load for: trivial uncontroversial edits (rename, typo, format), or work
-already covered by a signed contract.
+Do **not** load merely because work changes behavior, spans multiple files, or triggered `the-line`.
+Skip when the requirement and constraints are explicit, no meaningful user decision remains, and the
+agent can execute without later interruption. Examples include two straightforward error-code fixes,
+a well-specified regression with a known root cause, copy/format work, or work already covered by a
+signed contract.
 
 ## What the agent does
 
@@ -70,6 +104,23 @@ Its three jobs:
 2. **Show shape and size** — the user sees how big the work is and can catch a
    missing branch before any time is spent deciding.
 3. **Expose dependencies** — which nodes gate which, so the walk order is correct.
+
+### Bounded-progress contract
+
+Before presenting the first decision batch, count the mapped nodes and show progress explicitly:
+
+```text
+Decision progress: 5/25 resolved
+Current batch: 2/5
+Remaining areas: API contract, failure modes, rollout
+```
+
+Every later batch repeats `resolved/total` and the batch index. The user must never have to guess
+whether another unknown number of D-batches is coming. If discovery adds nodes, change the denominator
+openly: `25 -> 28 (+3 migration decisions discovered while resolving D11)`. Never hide denominator
+growth or reset numbering. When an exact total genuinely cannot be known initially, give a bounded
+range and the event that will finalize it, then replace the range with an exact count as soon as the
+map is complete.
 
 The map must span **both axes**, not one:
 - **Altitudes:** architecture → module → contract → implementation.
@@ -245,62 +296,28 @@ Per-node ok mid-walk is progress, NOT permission to execute. When the agent *thi
 it has hit the floor, its only move is to run the gate (5c) — never to announce
 completion.
 
-**5c. Independent red team(s) — the referee (automated, no human).** When the agent
-thinks every branch is at its floor, it MUST run an **independent, same-tier** red team
-whose only job is to **red-team, never bless** — find nodes that clear the ASK-gate but
-are missing, genuine forks wrongly PARKed to dodge asking (mis-triage → promote to ASK),
-and weak/false N/As. Framing it as adversarial gap-finding (not holistic "is it done?") is
-what makes it weak-model-safe — the worst it does is miss a gap (recovered next round + by
-the user), never wrongly *bless* completion. Same model tier; never default cheaper.
+**5c. Invoke the independently owned design gate.** When every branch appears to be at its floor,
+call `design-rt` with the current Ledger and the signed confirmation mode. Do not restate, narrow, or
+hand-roll its rubric here. The validator owns reviewer capability, materiality, findings, fail-fast
+behavior, confirmation, and fix-round cap.
 
-> **Terminology — "red team" + spoken gate labels.** This referee role is the **red team**:
-> an independent agent that *red-teams* the ledger and **never blesses** completion. Sayable
-> gate labels, so nobody has to cite a section number: the **Ledger** (the written Decision Ledger) ·
-> **no-self-call** (the agent may not self-declare done) · the **red-team gate** (by layer:
-> **design gate** here, **test gate**, **code gate**) · **sign-off** (the user's final call).
+- Blocking findings return as explicit OPEN Ledger nodes; fold them and continue the walkthrough
+  without summoning the user.
+- Blocking-clean plus Ledger OPEN == 0 satisfies the design-gate row of the Definition Receipt.
+- Preserve advisory findings for final sign-off without adding them to OPEN.
+- The walkthrough author cannot downgrade or override the independently returned verdict.
 
-**Run the design gate — don't hand-roll the referee.** The gate's rubric (MISSING /
-OVER-PARKED / WEAK-N/A over the Ledger's dimensions, plus scanning the spec's pre-existing Open
-Questions) and the shared convergence invariants live in the **`design-rt` skill** and the
-**`red-team-gate` engine** — they are NOT restated here, so they cannot drift between the three
-gates. Inherited from the engine, in brief:
-- **Asymmetric escalation** — a FAIL costs 1 red team (fold as OPEN, keep walking); a clean pass
-  is double-checked by a 2nd independent red team, so **convergence = two consecutive clean passes.**
-- **No-downgrade** — every finding is OPEN until it is genuinely folded (as a decision) or the
-  **user** rules it out of scope; the biased agent holds NO lever to relabel a hole
-  "narrow / obvious / not first-order / cosmetic" away, and there is NO "diminishing-returns →
-  converged" shortcut. A round with **any** hole is not clean. (Bad folds self-heal: next round's
-  red team re-reads the folded contract and re-flags a watered-down fix.)
-- **Scope-in is a floor** — extend the rubric, never shrink it; split a too-big surface into
-  coverage-preserving LANES (never exclude an area); hand the resolved Ledger as reference to
-  dedupe against, post-filtering dups in the open.
-- **Verify-against-code** — any Ledger claim about how existing code behaves is checked against
-  real source; convene a **code-capable** red team by default whenever the Ledger asserts code behavior.
+**5d. After design convergence, formulate BDD examples when BDD is applicable.** Invoke `bdd` in
+INTEGRATED mode with the Ledger as its decision source. Invoke `bdd-rt` only when the independently
+selected Definition Route turns that gate ON. If formulation returns an `UpstreamDecisionGap`, or a
+BDD-gate finding identifies a missing product decision, translate that finding into the same typed gap,
+reopen the Ledger, and rerun the affected design gate before formulating again.
+Skip BDD or its gate independently with a stated reason when each adds no useful risk reduction.
 
-The Ledger (5a) is the gate's oracle. Convene the gate with whatever sub-agent primitive the client
-offers (a red-team workflow, or sequential fresh-context passes) — independence is what matters,
-not any one runtime.
-
-> **Honest limit — and what it is NOT.** The autonomous loop (red team finds → agent folds
-> with no downgrade lever → re-run until two consecutive zero-hole rounds) handles the WHOLE
-> completeness job by itself; the human does **not** review each round and is **not** the
-> completeness referee. Safety against the agent faking "done" comes from removing the agent's
-> discretion (scope-in floor + no-downgrade + no-narrowness), NOT from human oversight — and bad
-> folds self-heal via the two-clean-rounds bar. The human is summoned **once, at the end**, for a
-> single product/taste sign-off, never as a per-round debugger. The ONE residual that genuinely
-> needs a per-client hook (or an occasional human spot-audit) is the degenerate case where the
-> agent **fabricates having run the panel at all** — a dishonesty failure, categorically different
-> from the discretion-leak this section closes, and not solvable by protocol.
-
-- Panel finds anything → fold each into the ledger as OPEN → **keep walking
-  automatically; the user is NOT summoned.** A failed gate just means the agent didn't
-  actually hit the floor — its error to fix, not the user's to catch.
-- Panel clean **and** OPEN == 0 → **convergence** (main agent + referee agree).
-
-**5d. THEN — and only then — the user is the final arbiter.** Convergence is the
-*precondition* to summon the user, not a substitute for them. On convergence, present
-the full ledger as a report ("main + red team panel converged; here is the blueprint
-— decided / parked-with-default / prototype") and ask for the final call. The user ok
+**5e. THEN — and only then — the user is the final arbiter.** Design convergence plus BDD-gate
+convergence when that gate is ON is the precondition to summon the user, not a substitute for them. Present
+the full ledger and scenario trace as a report ("main + red team converged; here is the blueprint and
+behavior examples — decided / parked-with-default / prototype") and ask for the final call. The user ok
 (proceed to fold the contract / build) or no (they caught what the panel missed → those
 nodes return to OPEN, keep walking). Because the user is summoned ONLY post-convergence,
 they never see a premature "done" and never churn on half-baked claims.
@@ -309,18 +326,35 @@ they never see a premature "done" and never churn on half-baked claims.
   red-team rubric** so the panel catches it next time. The loop self-sharpens.
 
 **"Done" is a computed state, never an assertion:**
-`done ≡ (ledger OPEN == 0) ∧ (TWO consecutive zero-hole red team passes) ∧ (user sign-off)`.
-No narrowness/diminishing-returns shortcut substitutes for the two clean passes.
+`done ≡ (ledger OPEN == 0) ∧ (the route's design-gate confirmation satisfied) ∧ (BDD artifact complete or BDD OFF) ∧ (BDD-gate confirmation satisfied or BDD gate OFF) ∧ (user sign-off)`.
+No narrowness/diminishing-returns shortcut substitutes for the signed `single`/`double` confirmation.
 
-Once done, emit the execution contract — a **structured plan doc** — carrying the locked
-decisions plus the four execution-safety sections (Commands, Open Assumptions, Stop
-Conditions, Parked Decisions). Execution then runs silently per the work mode.
+Once done, emit the **Signed Definition Bundle**. Its execution contract is a structured plan doc
+carrying the locked decisions plus the four execution-safety sections (Commands, Open Assumptions,
+Stop Conditions, Parked Decisions). It also contains this minimal receipt:
+
+```text
+Definition Receipt
+- walkthrough: ON
+- Decision Ledger: complete
+- design gate: single|double confirmed
+- BDD invocation: INTEGRATED | N/A
+- BDD tooling: OFF | FORMULATION_ONLY | EXECUTABLE
+- BDD artifact + AC trace: <location or N/A>
+- BDD gate: single|double confirmed | OFF + reason
+- user sign-off: approved
+```
+
+The receipt lets an outer caller treat nested stations as already satisfied instead of invoking them
+again. It is deliberately not a speculative schema/hash framework; if a decision reopens, mark the
+affected receipt row stale, rerun that portion of the composite, and report the denominator change.
+Execution then runs silently per the work mode.
 
 > Rationale: this gate guards against an agent declaring done after ~2 rounds with nodes still
 > unsettled (which forces a human to become the completeness debugger); a prose-only gate does
 > not bind. The **anti-leak discipline** (scope-in floor + coverage-preserving lane-partition,
 > not exclusion + resolved-set-as-reference + no-downgrade rule + banned narrowness shortcut +
-> two-clean-rounds bar that self-heals bad folds + human as single end-of-gate sign-off) guards
+> signed confirmation bar that self-heals bad folds + human as single end-of-gate sign-off) guards
 > against a biased main agent controlling BOTH the red team's scope-in AND its
 > verdict-interpretation, which would defeat independence from both ends.
 
@@ -425,11 +459,14 @@ trunk.
 
 ## Relationship to the work mode
 
-- **Output** → an execution contract (a structured plan doc carrying the locked decisions
-  + Commands / Open Assumptions / Stop Conditions / Parked Decisions).
+- **Output** → a Signed Definition Bundle: execution contract + Definition Receipt + applicable
+  behavior scenarios and AC trace.
+- **Standalone parity** → direct invocation and `the-line` invocation produce the same bundle; an
+  outer route consumes the receipt and never repeats satisfied nested stations.
 - **Followed by** → silent execution, then review (Briefing → Silent → Review).
 - **Replaces** → an older interrogation-style approach.
-- **The design gate** → the referee for this walkthrough is the `design-rt` skill (it instantiates
-  the shared `red-team-gate` engine with the design rubric; this walkthrough's Ledger is its oracle).
-- **Sibling gates** → the same engine runs the **test gate** (`test-rt`) and the **code gate**
-  (`code-rt`) at the later per-mission stages.
+- **The design gate** → the referee for this walkthrough is the independently owned `design-rt`
+  skill (it instantiates the shared `red-team-gate` engine with the design rubric; this walkthrough's
+  Ledger is its oracle). The composite invokes it but cannot author or override its verdict.
+- **Sibling gates** → the same engine runs the **test gate** (`test-rt`), **code gate**
+  (`code-rt`), and user-facing **acceptance gate** (`accept-rt`) at later per-mission stages.

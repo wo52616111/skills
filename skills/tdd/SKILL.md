@@ -13,6 +13,10 @@ Use TDD where it provides clear quality ROI, avoid it where it adds friction, an
 
 ## Decision 1: When to Enable TDD
 
+**Structural precondition:** a compatible project-local test harness already exists. If not, TDD and
+test-rt are OFF. `FORCE_ON` and hard-line pins cannot override missing tooling; only a separately
+authorized harness-setup task can change the precondition.
+
 Three modes:
 
 - `FORCE_ON`: TDD is mandatory
@@ -21,8 +25,12 @@ Three modes:
 
 Priority: `FORCE_ON`/`FORCE_OFF` override `AUTO`.
 
-### FORCE_ON — enable by default for
-- Bug fixes (especially regressions)
+### FORCE_ON
+
+Use only for an explicit user/hard-line pin. The following are strong `AUTO` benefit signals, not
+category-wide mandates:
+
+- Bug fixes, especially regressions
 - Architecture refactors or core-flow rewrites
 - Critical run-paths (startup, config load, core command path)
 - Data correctness or security boundary changes
@@ -40,6 +48,10 @@ Priority: `FORCE_ON`/`FORCE_OFF` override `AUTO`.
 - Enable TDD when `benefit >= cost + 1`
 
 Before implementation, output: selected mode + why it applies + the benefit/cost breakdown (if `AUTO`).
+
+The line never installs a test framework merely to enable TDD. Missing tooling is a structural OFF
+reason. If the user separately requests test-harness initialization, handle that as explicit setup
+work with its own dependency authorization and verification.
 
 ---
 
@@ -88,6 +100,11 @@ Progressive levels: `L1` targeted · `L2` affected module/package · `L3` full s
 
 Stop and ask for user input when: a non-trivial architecture change is required; two diagnose cycles show no progress; the test itself may be invalid / requirements conflict; or data-migration/security/external-side-effect risk is involved.
 
+> In a silent-execution context (running under a signed contract), "ask the user" means
+> escalate via the contract's blocked/parked mechanism — record it and stop or proceed
+> conservatively — NOT a mid-run interrupt. The same applies to Decision 4's
+> "wait for user confirmation".
+
 ---
 
 ## Decision 7: Diagnose Output Contract
@@ -103,6 +120,11 @@ The requirements baseline (the spec) is human-owned; the work log records execut
 - Treat the spec as source of truth for requirements, acceptance, and architecture intent.
 - The agent does not directly rewrite core spec content by default; if a spec change is needed, submit a proposal first (reason, impact, suggested text) and apply only after explicit user approval.
 - Auto-update the work log with high-value, decision-oriented, searchable execution facts — not a verbose noise dump.
+
+When BDD is ON, its gated scenarios are the outer behavior examples. TDD owns Automation: start from
+the failing executable scenario when available, then use inner unit/integration Red -> Green cycles.
+Do not duplicate every Gherkin sentence as a low-value unit test, and do not let TDD silently reinterpret
+an already gated behavior scenario.
 
 ---
 
@@ -127,8 +149,12 @@ The task's structured **acceptance criteria** are the gate's oracle — keep eac
 
 ## Standard Execution Flow
 
+Before the first cluster, report `clusters complete / planned clusters` and `ACs automated /
+applicable ACs`. Repeat the counters at every cluster boundary. If decomposition discovers more
+clusters or applicable ACs, report the old/new denominator and reason.
+
 1. Determine mode (`FORCE_ON`/`FORCE_OFF`/`AUTO`).
-2. For TDD paths, run Red → Green → Refactor in micro-slices.
+2. If BDD is ON, map the current behavior scenario to its automation owner; then run Red → Green → Refactor in micro-slices.
 3. In TDD: at each Red→Green boundary, gate the cluster's tests via the test gate before writing impl (Decision 10).
 4. Enforce stop-loss and no-new-evidence rules.
 5. If blocked, switch to `DIAGNOSE` with the required output contract.
@@ -147,6 +173,7 @@ The task's structured **acceptance criteria** are the gate's oracle — keep eac
 - Full-suite overuse for low-risk trivial tasks
 - Turning the spec into a progress journal
 - Turning the work log into a verbose noise dump
+- Treating BDD and TDD as duplicate test suites instead of outer behavior + inner implementation feedback
 
 ---
 

@@ -1,6 +1,12 @@
 ---
 name: design-rt
-description: Independent adversarial gate on a DESIGN — the Decision Ledger produced by a walkthrough — run before execution begins. It checks the design is COMPLETE: every decision node that should be open is open (not missing, not wrongly parked with a default, not falsely marked N/A). The design-phase counterpart to the test gate (test-rt) and the code gate (code-rt). Load when a walkthrough believes it has converged, or on "design gate" / "gate the ledger" / "is the design complete".
+description: >-
+  Independent adversarial gate on a DESIGN — the Decision Ledger produced by a walkthrough —
+  run before execution begins. It checks the design is COMPLETE: every decision node that
+  should be open is open (not missing, not wrongly parked with a default, not falsely marked
+  N/A). The design-phase counterpart to the test gate (test-rt) and the code gate (code-rt).
+  Load when a walkthrough believes it has converged, or on "design gate" / "gate the ledger" /
+  "is the design complete".
 ---
 
 # design-rt: is the design complete? (the design gate)
@@ -13,8 +19,10 @@ let's build" while nodes are still unsettled and the user becomes the completene
 This gate closes that gap: **before execution, an independent red team checks the Ledger for the
 decision nodes that should be open but aren't** — and the agent may not self-declare the design done.
 
-- It is the **design-phase** counterpart to the **test gate** (`test-rt`, input side) and the
-  **code gate** (`code-rt`, output side) — the earliest of the three, run at the briefing stage.
+- It is the **design-phase** counterpart to the **test gate** (`test-rt`, input side), **code gate**
+  (`code-rt`, output side), **BDD gate** (`bdd-rt`, behavior examples), and user-facing
+  **acceptance gate** (`accept-rt`) — the earliest gate,
+  run at the briefing stage.
 - Its job is **completeness, not correctness**: *is every decision that clears the ASK-gate
   actually surfaced?* — never "is this the right design" (that call is the user's, at sign-off).
 
@@ -23,7 +31,9 @@ decision nodes that should be open but aren't** — and the agent may not self-d
 - When the `walkthrough` agent thinks every branch is at its floor. Running this gate is its ONLY
   move at that point — announcing "walkthrough complete / ready to build" on its own authority is
   banned (see `walkthrough`, no-self-declare).
-- Against the current Decision Ledger, every round, until convergence.
+- Against the current Decision Ledger, every round until convergence or **CAP = 3 fix-rounds**.
+  Report `fix round / 3`, OPEN count, and confirmation pass progress. At the cap with unresolved
+  blockers, escalate the remaining decisions to the user; never continue an unbounded sequence.
 
 ## The oracle
 
@@ -51,63 +61,51 @@ hosting / cost` — each has real coverage, a justified N/A, or a hole. **Plus: 
 pre-existing Open Questions / TBD / deferred markers** — a pre-existing open item is still a hole
 if the new work touches it. Default to FLAG when unsure (recall > precision).
 
-**Convergence = zero holes, twice** (the engine's two-clean rule).
+Each finding carries an explicit `blocking` boolean. A finding blocks only when it identifies a
+concrete decision failure, the affected requirement/contract/user/safety behavior, evidence from the
+Ledger/source, and the real cost of leaving it unresolved. **Convergence = zero blocking holes for the signed confirmation mode**
+(`single` = one clean pass; `double` = two fresh sequential clean passes).
 
-## Findings schema (the engine `findingsSchema` arg)
+## Portable finding contract
 
-```json
-{
-  "type": "object", "additionalProperties": false, "required": ["findings"],
-  "properties": { "findings": { "type": "array",
-    "description": "Holes found. Empty = genuinely no hole this pass.", "items": {
-    "type": "object", "additionalProperties": false,
-    "required": ["dimension", "node", "type", "why", "suggested_triage"],
-    "properties": {
-      "dimension":        { "type": "string" },
-      "node":             { "type": "string", "description": "short name of the missing / mis-triaged decision node" },
-      "type":             { "type": "string", "enum": ["missing", "over-parked", "weak-na"] },
-      "why":              { "type": "string", "description": "concretely why it clears the ASK-gate (fork / ripple / cost / stake)" },
-      "suggested_triage": { "type": "string", "enum": ["ASK", "PARK", "PROTOTYPE"] }
-    } } } }
-}
-```
+This skill is executable without the optional engine. An off-engine reviewer returns a list of
+findings with: `dimension` · `node` · `type` (`missing` / `over-parked` / `weak-na`) · `why` ·
+`suggested_triage` (`ASK` / `PARK` / `PROTOTYPE`) · `severity` · required boolean `blocking`.
+Use the fixed dimensions and materiality rule above. Empty findings means blocking-clean.
 
-## Framing (the engine `framingLines` arg)
-
-```
-You are an adversarial completeness RED TEAM for a design walkthrough. Your ONLY job is to find HOLES.
-You do NOT approve, bless, or judge "is it done" — you only surface nodes that should be open but are not.
-A red team that finds fewer real holes is tolerable; one that wrongly implies "looks complete" is a failure.
-When uncertain whether something is a hole, FLAG it — recall matters more than precision here.
-
-Hunt three kinds of holes in the Decision Ledger below:
-1. MISSING — a decision node that clears the ASK-gate (Fork / Ripple / Cost / Stake) but is absent.
-2. OVER-PARKED — a node parked with a default that is actually a genuine fork the user should decide.
-3. WEAK-N/A — a dimension marked "N/A" whose justification does not actually hold for this work.
-Also scan the spec's own pre-existing Open Questions / TBD / deferred markers — a pre-existing open item is still a hole if the new work touches it.
-```
+The shared engine carries the machine-readable JSON schema and the same generic design preset so
+an engine call needs only `{ artifact, context, confirmation: <route single|double>, protocolVersion: 1 }`. The engine is an optional
+accelerator, not required knowledge for understanding or manually running this skill.
 
 ## Engine
 
 design-rt IS the engine's built-in default preset, so it does not pass a custom rubric — a
 design-gate call passes only `{ artifact: <the Decision Ledger>, context: <spec / decisions so
-far> }` and inherits the design framing / dimensions / findings-schema. The **shared gate
-invariants** — asymmetric 1→confirm (a FAIL costs 1, a clean pass is double-checked → **two
-consecutive clean passes to converge**), never-bless, no-downgrade, scope-in-as-a-floor
-(lane-partition, not exclusion), verify-against-source, client-agnostic — live in the
+far>, confirmation: <route single|double>, protocolVersion: 1 }` and inherits the design framing / dimensions / findings-schema. The **shared gate
+invariants** — fail-fast plus the signed clean-confirmation mode, never-bless, no-downgrade, scope-in-as-a-floor
+(lane-partition, not exclusion), verify-against-source, capability-before-diversity — live in the
 `red-team-gate` engine header; design-rt inherits them exactly like its sibling gates.
 
 Convene a **code-capable** red team (one that can Read / Grep / run the repo) by DEFAULT whenever
 the Ledger asserts how existing code behaves; a text-only panel is the fallback only for pure-design
-ledgers with no code claims. Client-agnostic: without a workflow runner, run the same passes via
-the client's sub-agent primitive (or sequential fresh-context passes) — independence is what matters.
+ledgers with no code claims.
+
+Every pass uses a fresh context/session. The reviewer must be capable of checking the actual
+artifact: use a code-capable reviewer when the Ledger asserts code behavior. A different model
+or client is optional diversity only when it is comparably capable (or better) and reliable;
+never downgrade reviewer quality to obtain heterogeneity. Same-model fresh-context passes are
+fully valid. An off-engine runner needs this rubric reproduced verbatim.
 
 ## Relationship to the other gates
 
 - **Upstream oracle** → the `walkthrough` skill's Decision Ledger + ASK-gate.
-- **Gates** → the walkthrough's convergence: done requires two clean design-gate passes, and only
-  THEN is the user summoned. The gate is the *precondition* to summon the user, never a substitute
+- **Invocation ownership** → `walkthrough` may invoke this validator as an explicit step in its
+  transparent Definition composite. Independence comes from this skill's separately owned rubric,
+  fresh reviewer, explicit findings, and convergence result, not from requiring a separate top-level caller.
+- **Gates** → the walkthrough's convergence: done requires the signed `single`/`double` design-gate
+  confirmation, and only THEN is the user summoned. The gate is the *precondition* to summon the user, never a substitute
   for their sign-off.
-- **Followed by** → the user's final sign-off, then the split into missions.
-- **Shares the engine with** → the test gate (`test-rt`) and the code gate (`code-rt`) — same
-  engine, different rubric (design uses the built-in default; test/code override it).
+- **Followed by** → BDD formulation + `bdd-rt` when BDD is applicable, otherwise user sign-off;
+  durable missions are created only when their carrier value justifies them.
+- **Shares the engine with** → `bdd-rt`, `test-rt`, `code-rt`, and `accept-rt` — same engine, different
+  rubrics (design uses the built-in default; the others override it).

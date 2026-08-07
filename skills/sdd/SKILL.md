@@ -84,10 +84,16 @@ feature-name/
 ## Creating a New Feature Spec
 
 1. Create the feature directory under your specs location.
-2. Create `spec.md` from the bundled template (`templates/spec.md.template`); fill in feature details.
-3. Create sub-specs as needed from `templates/sub-spec.md.template`.
-4. If research exists, `mkdir research` and create `research/index.md` from the template.
+2. Create `spec.md` with the Layer-1 structure above (YAML frontmatter: a version field / status /
+   created / updated), with the body sections the Layer-1 definition above enumerates; fill
+   in feature details.
+3. Create sub-specs as needed (Layer 2: one cohesive component each, frontmatter + focused sections).
+4. If research exists, `mkdir research` and create `research/index.md` (Layer 3: an annotated
+   index linking each research doc).
 5. Register the spec in your spec registry/index (id, name, path, version, status).
+
+If your distribution ships spec templates, start from those instead of blank files (a local
+overlay may map their location).
 
 **Checklist**: spec.md ≤200 lines · sub-specs for major components · `research/index.md` if research exists · lowercase names · registered in the index · frontmatter version set.
 
@@ -96,10 +102,6 @@ feature-name/
 **DO**: update the existing spec (spec.md or the relevant sub-spec) · use git to track what changed · move substantial obsolete content to `archive/` · bump the frontmatter version + `updated`.
 **DON'T**: create versioned files (`v2-spec.md`) · keep obsolete specs alongside current ones · create "update"/"changes" files.
 Use `git log --follow spec.md` to see evolution.
-
-## Bundled Templates
-
-`templates/spec.md.template` (Layer 1) · `templates/sub-spec.md.template` (Layer 2) · `templates/research-index.md.template` (Layer 3) · `templates/adr.md.template` (ADRs). Each includes YAML frontmatter, section structure with examples, and agent-friendly formatting.
 
 ## Common Pitfalls
 

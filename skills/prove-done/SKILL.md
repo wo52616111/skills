@@ -1,6 +1,6 @@
 ---
 name: prove-done
-description: Mandatory verification gate before marking a coding task done. Forces the agent to prove (via observation or compile-time enforcement) that the change actually works end-to-end across every contract boundary it touches, instead of relying on unit tests that only validate logic given assumed inputs.
+description: Boundary-aware verification station for coding deliverables whose signed route requires end-to-end evidence across runtime or contract boundaries. Proves behavior by observation or compile-time enforcement instead of relying only on isolated unit tests. Durable missions always retain a Verification Ledger, but mechanical/copy-only work may use a compact ledger without running the full station.
 ---
 
 # Prove-Done Skill
@@ -11,7 +11,7 @@ Close the gap between "tests pass" and "feature works". A unit test mocks the in
 change; it doesn't prove the inputs ever arrive, that downstream consumers know about your
 change, or that the user-facing behavior is what you expected.
 
-Before the agent marks the task done, it must fill a **Verification Ledger** that addresses 5
+When this station is ON, before the agent marks the coding deliverable done it fills a **Verification Ledger** that addresses 5
 dimensions of "really done". Any unverified dimension must be explicitly escalated to the
 user, not silently proceeded past.
 
@@ -30,10 +30,11 @@ ledger**. Reciting passing dimensions every turn is performative noise.
 
 ## When to Load
 
-- **Mandatory**: at the end of every silent-execute phase, before marking the task done.
-- The trigger is the convention itself, not a user request — the agent self-invokes.
-- Skip only when the change is trivially un-shippable (work-in-progress dump, mid-refactor
-  checkpoint) AND the task is not being marked done (e.g. it will be blocked or released).
+- **Load when the signed route turns this station ON** for a coding deliverable with behavior/runtime
+  boundaries that need end-to-end evidence.
+- Durable missions still require a Verification Ledger, but a mechanical/copy-only route may fill a
+  compact evidence ledger without loading the full skill.
+- Do not run while work is intentionally incomplete or not being marked done.
 
 ## The 5 Dimensions
 
@@ -98,8 +99,8 @@ Append this to the task body before marking it done:
      unverified path is "does the app even launch?" or "does an existing user's first upgrade
      load?", shipping it is a *guaranteed* break, not a deferred risk. Run it to `[a]` (load a
      pre-change artifact, launch the build) before done; if you genuinely cannot, the task is
-     blocked, not done. (This is real: a crash-on-launch once shipped because dim B was `[c]`
-     "real-machine first launch" and got marked done anyway; only the user's launch caught it.)
+      blocked, not done. For example, marking "real-machine first launch" as `[c]` can allow a
+      crash on launch to escape review; the real launch must happen before completion.)
 
 ## Worked Examples
 
@@ -164,7 +165,7 @@ Append this to the task body before marking it done:
 - `tdd` — about how to drive code via tests. Prove-done is about what's true *after* tests pass.
 - `test-rt` — independently checks (in TDD, before coding) that the TEST CASES nail every
   confirmed requirement. When it has run, dim **B (Behavior)** is no longer self-referential.
-- `code-rt` — the **independent adversarial audit of the diff**, run *before* this self-cert: a
-  code-reading red team gates the diff (looping fixes, escalating at its cap), and once it has
-  converged the author fills this final `prove-done` Verification Ledger before marking done.
-  code-rt is the independent check of the code; prove-done is the author's final end-to-end attestation on the audited diff.
+- `code-rt` — when ON, the independent adversarial audit of the diff. If both stations are ON,
+  code-rt converges before this self-cert.
+- `accept-rt` — when ON, the independent pre-user-handoff review. If resolving a finding changes
+  the artifact, refresh every affected code/evidence station that was ON before rerunning accept-rt.

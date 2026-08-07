@@ -1,201 +1,216 @@
-# the line — composable skills for disciplined agent coding
+# Composable skills for disciplined agent delivery
 
-A set of **composable agent skills** for driving non-trivial coding work through a disciplined,
-gated pipeline — plus the shared red-team engine the gates run on. Each skill is a plain
-`SKILL.md` (methodology, not tooling) that drops into any agent that loads markdown skills.
+A collection of plain-Markdown agent skills for selecting the shortest sufficient path from clarification through implementation and review. The skills can be installed together as an adaptive delivery flow or used independently.
 
-**Use the whole set, or just the skills you want.** Fully assembled they *are* "the line" — the orchestrator
-wires the whole pipeline end-to-end. But each skill also stands alone: wrote a diff with no
-walkthrough and no TDD? run `code-rt` on it. Hand-wrote some tests? run `test-rt`. Just want to
-align on a plan before building? run `walkthrough`. Nothing requires the full pipeline.
+The core rule is simple: the author does not declare its own work complete. Important artifacts are checked by a fresh, sufficiently capable reviewer, and the user remains the final sign-off.
 
-The core belief: **nothing advances on the author's say-so.** Work is broken into missions, and
-each stage must pass an *independent adversarial gate* before it moves on — convergence is earned
-by review, not declared by the writer.
+## Adaptive pipeline
 
-## The pipeline (fully assembled)
+When walkthrough is ON, it is a transparent composite Definition function:
 
+```text
+walkthrough[
+  decision discovery/resolution
+  -> design gate
+  -> BDD formulation when useful
+  -> BDD gate when independently ON
+  -> user sign-off
+]
+-> Signed Definition Bundle
+-> split into durable missions when useful
+
+per mission:
+  tdd when useful
+  -> test gate when TDD is on
+  -> coding
+  -> code gate
+  -> prove-done
+  -> acceptance gate when user-facing
+  -> done
+  -> user review
 ```
-the line
-|
-+- walkthrough (whole requirement) -> design gate -> converge -> sign-off -> split into N missions
-     |
-     +- each mission  [a durable mission contract carries the chain]:
-          tdd -> test gate -> coding -> code gate -> prove-done -> review
+
+When walkthrough is OFF, BDD may still run in STANDALONE mode against an explicit stable behavior
+contract. The outer route consumes the Definition Receipt and never repeats nested stations already
+completed by walkthrough.
+
+This is a catalog of possible stations, not a mandatory checklist. A straightforward bug may skip
+walkthrough and BDD; a copy-only edit may skip every semantic gate and use only a minimal render/lint
+check. Every station is independently ON/OFF with a reason.
+
+If an acceptance-gate finding changes the artifact, rerun affected stations that were already ON:
+
+```text
+[affected code/evidence stations that were ON]
+-> [newly applicable stations if risk/contracts/tooling changed]
+-> acceptance gate
 ```
 
-One requirement-level design pass — the split into missions follows the user's design
-**sign-off** — then each mission runs the same per-mission chain. `N = 1` is not special-cased;
-it's just one mission.
+This prevents stale evidence without activating unrelated stations. Recalculate the route when the fix
+changes risk, contracts, or tooling, and record any denominator change and its reason.
 
-Not every station is mandatory; the per-mission *route* says which run. `coding` is the author's
-own implementation step — the one stage the line does *not* delegate to a skill. The **test gate**
-runs only when `tdd` is on, and the **code gate** skips pure-mechanical work (rename / format /
-docs). And when `tdd` is on, the `tdd -> test gate -> coding` loop runs **per acceptance-criteria
-cluster** (interleaved) — each cluster's tests are gated at their Red->Green boundary before that
-cluster's code — not as one "write all tests, gate once, then code" pass.
+## Skills
 
-## The pieces, by role
-
-The skills split into a few roles. Only `the-line` needs the others; every other skill is usable
-on its own.
-
-| Role | Skill | What it does |
+| Role | Skill | Purpose |
 |---|---|---|
-| **Orchestrator** | **the-line** | The thin conductor for the *fully-assembled* pipeline. Fixes the order, the two run-modes — *the line* (adaptive, the default: the agent proposes which stations run or skip per mission) and *the hard line* (pin all applicable stations on) — the skip norm, and the gate labels, then delegates every stage to the skill below. Reimplements nothing. |
-| **Stations** (the work) | **walkthrough** | The design/briefing stage (requirement-level, before the split) — *propose, don't interrogate*. Produces a Decision Ledger, runs the design gate, ends in sign-off. |
-| | **mission** | The **carrier**: a durable, independently-executable contract for one unit of work (see *Why split into missions*). The per-mission stations run *inside* a mission. |
-| | **tdd** | Risk-aware TDD: when to enable, hard pre-handoff gates, loop guards. |
-| | **prove-done** | The author's own 5-dimension end-to-end self-cert, filled just before marking a mission done. |
-| **Gates** (independent red-team convergence — one engine, one rubric each) | **design-rt** | The **design gate** — is the Decision Ledger complete? (missing / over-parked / weak-N/A nodes) |
-| | **test-rt** | The **test gate** — do the tests pin every requirement, *before* code exists? Runs only when `tdd` is on. |
-| | **code-rt** | The **code gate** — is the diff sound? (correctness / contract / regression / security / acceptance) |
-| **Substrate** (durable docs) | **wip** | Tracks *execution progress* — a resumable doc that survives session death: what's done, what's left, current state. |
-| | **sdd** | Structures *the design* — a context-aware, 4-layer spec hierarchy that fits agent context limits. |
-| **Engine** | *(engine/)* | **red-team-gate** — the shared convergence *mechanism* every gate runs on; `engine/red-team-gate.js` is one optional client accelerator for it. |
+| Orchestrator | `the-line` | Selects the route and composes capabilities with light conditions; it does not duplicate nested skill logic. |
+| Composite Definition | `walkthrough` | Maps and resolves the decision tree, invokes independent Definition validators and applicable BDD, obtains sign-off, and returns a Signed Definition Bundle. |
+| Design gate | `design-rt` | Checks the Decision Ledger for missing, over-parked, or weakly dismissed decisions. |
+| Behavior formulation | `bdd` | Turns agreed behavior into concrete observable examples using Discovery, Formulation, and Automation boundaries. |
+| BDD gate | `bdd-rt` | Reviews formulated examples for coverage, concreteness, observable outcomes, contradictions, and automation viability. |
+| BDD setup | `bdd-setup` | Explicitly installs and proves the project-specific Cucumber toolchain; never runs automatically. |
+| Execution carrier | `mission` | Stores one durable unit of work, its acceptance criteria, station route, safety rules, verification, and review result. |
+| Test strategy | `tdd` | Enables TDD when its quality benefit exceeds its cost and bounds unproductive retry loops. |
+| Test gate | `test-rt` | Reviews pre-implementation tests against signed acceptance criteria and verifies that Red is genuinely Red. |
+| Code gate | `code-rt` | Reviews the finished diff for correctness, contract, regression, security, observability, and explicit preference violations. |
+| Verification | `prove-done` | Requires evidence that changed behavior reaches real contract boundaries and works beyond isolated unit tests. |
+| Acceptance gate | `accept-rt` | Reviews a user-facing result for coherence, usability, integration, completeness, and preventable first-use problems. |
+| Work log | `wip` | Maintains a durable, resumable progress record across sessions. |
+| Specification | `sdd` | Structures specifications into a small entrypoint plus on-demand component and research layers. |
 
-## How the pieces relate
+Skills remain independently owned capabilities, but they need not all be leaf functions. A transparent
+composite may invoke another skill while preserving that skill's rubric, reviewer independence,
+findings, effects, and result. `the-line` selects routes; it does not absorb domain-specific logic.
 
-The stations do the work; the **gates** (design-rt / test-rt / code-rt) make each stage's output
-trustworthy; the **substrate** (wip + sdd) makes it all survive across sessions. Four
-relationships are worth spelling out — they're the ones the flat list hides.
+## Reviewer independence
 
-### 1. spec vs. wip — structure vs. progress
+Every gate pass runs in a fresh context or session. The reviewer must have the tools and reasoning capability required by the rubric.
 
-The two durable docs answer different questions:
+A different model or agent client is optional diversity, not a requirement. Use one only when it is comparably capable or better, reliable for the artifact, and worth the cost. Never downgrade reviewer quality merely to make two passes heterogeneous. A capable same-model reviewer in a fresh context is a fully supported path.
 
-- **`sdd` (spec)** holds the **structural truth** — *what* we're building and how it's shaped:
-  architecture, contracts, data model, success criteria. It's the design, layered so an agent
-  loads only what it needs — a ~200-line always-on entrypoint plus on-demand sub-specs
-  (~100-200 lines each), so a task loads roughly 300-600 lines total, not the whole spec.
-- **`wip`** holds the **progress truth** — *where the work stands right now*: what's done, what's
-  left, the current one-line stage, and a running decision log. Built to be picked up cold by the
-  next session with no prior chat.
+## Gate protocol
 
-A spec that never changes and a wip that's all history are both fine — they're deliberately
-separate. One is the blueprint; the other is the build log.
+The optional shared engine in `engine/red-team-gate.js` implements the common gate protocol:
 
-### 2. How the substrate feeds the pipeline
+- A blocking failure is trusted after one pass and returns immediately.
+- Gate routes choose `single` or `double` clean confirmation. Existing callers default to `double`.
+- Adaptive low/medium-risk routes use `single`; high-risk and hard-line routes use `double`.
+- Advisory findings remain visible but never block convergence.
+- Every finding carries an explicit boolean `blocking` field.
+- Custom finding schemas declare stable `identityFields` so deduplication cannot hide or contradict findings.
+- Empty rubrics, malformed schemas, missing identity values, runner failures, and protocol mismatches fail closed.
+- The reviewer red-teams the artifact; it never replaces user sign-off.
 
-The stations don't hold their own state — they read and write the substrate:
+The engine is an optional accelerator. Each gate skill contains enough rubric and procedure to run manually with another agent primitive.
 
-- **walkthrough -> wip.** The walkthrough's Decision Ledger is *persisted in the wip's `## Log`* —
-  its durable home, so the design survives the session that produced it. If the design is
-  substantial enough to be a blueprint, it also gets structured as an **sdd spec**.
-- **wip -> missions.** The wip is the *requirement-level* record; each **mission** links back to
-  it (a `Parent:` reference). Missions are its execution sub-units.
-- **tdd -> the work log.** `tdd` records high-value execution facts into the work stream's log —
-  the wip's `## Log` when a wip is that stream's record.
+## When each station applies
 
-So one work stream reads top-to-bottom: **wip** (progress + Ledger) -> **spec** (structure, when
-the design warrants one) -> **missions** (each executing its contract's locked decisions) -> gates
--> back into the wip.
+| Station | Runs when | Skips when |
+|---|---|---|
+| `walkthrough` | Meaningful user/product/design/architecture decisions remain | Requirements and constraints are explicit enough to execute without user decisions |
+| `design-rt` | A walkthrough Decision Ledger needs independent completeness validation | Walkthrough is off; structurally unavailable |
+| `bdd` | Concrete examples clarify domain rules, journeys, state transitions, failures, or cross-system behavior | Mechanical/internal work or an explicit behavior better expressed by a direct test |
+| `bdd-rt` | BDD is on, scenarios are ready, and independent review materially reduces behavior-contract risk | BDD is off, or direct sign-off is sufficient for an explicit low-risk scenario set |
+| `bdd-setup` | The user explicitly asks to initialize executable BDD/Cucumber tooling | Normal delivery routing; missing tooling never auto-installs it |
+| durable `mission` | Cross-session durability, delegation, multiple slices, or formal review value justify a carrier | Small same-session work does not benefit from durable overhead |
+| `tdd` | Expected quality benefit exceeds implementation and maintenance cost | Tests would add more friction than confidence |
+| `test-rt` | TDD is on and a cohesive test cluster is ready before implementation | TDD is off |
+| `code-rt` | The diff has material correctness/contract/regression/security risk | Mechanical work or a tiny explicit change whose targeted checks close realistic risk |
+| `prove-done` | A coding deliverable crosses behavior/runtime boundaries and approaches completion | No behavior/runtime deliverable is being claimed complete |
+| `accept-rt` | A human-driven surface has material first-use risk | Internal work or a directly verifiable low-risk presentation-only change |
 
-### 3. The gates: one engine, a rubric each
+When a durable mission is used, it records the complete station route. Without a mission, the current
+task plan records the same ON/OFF reasons compactly. Durability is optional; route honesty is not.
 
-`design-rt`, `test-rt`, and `code-rt` aren't three hard-coded steps — they're **instantiations of
-one convergence engine**, each passing its own rubric (`framingLines` / `dimensions` /
-`findingsSchema`) against a different artifact. The engine is rubric-agnostic; a new kind of gate
-is just a new rubric, not new machinery.
+## Safe pipeline parallelism
 
-The gates that exist today:
+Independent work may use one author lane plus one background gate lane when the host supports it.
+Parallel work requires dependency, write, contract, and runtime-resource isolation plus an immutable
+review snapshot. Same-artifact confirmation passes stay sequential.
 
-| Gate | Skill | Artifact under audit | Hunts for |
-|---|---|---|---|
-| **design gate** | `design-rt` | the Decision Ledger | missing / over-parked / weak-N/A decision nodes |
-| **test gate** | `test-rt` | the tests (pre-code) | tests that don't truly pin a requirement |
-| **code gate** | `code-rt` | the diff | correctness / contract / regression / security / acceptance defects |
+Composition does not trigger a duplicate full review:
 
-The mechanism is identical for all three:
+- `isolated`: combined build/affected tests only;
+- `interaction-risk`: one narrow review of behavior created by composition;
+- `coupled`: batch before review and run one cohesive gate.
 
-- an **independent** red team hunts holes (a fresh agent, not the author);
-- **asymmetric escalation** — a *fail* is cheap to trust (one real hole -> send back, cost: one
-  pass), a *clean pass* is the dangerous claim, so it's double-checked by a **second, independent**
-  red team;
-- **"converged" requires two consecutive clean passes** — never two simultaneous ones — and the
-  red team **never blesses "done"**; only the human signs off.
+Review each behavior once; after composition, review only behavior created by the composition.
 
-The engine returns `{ converged, openNodes, checks, note? }` (plus `error?` on a mis-run); a
-caller loops until `converged`. The shared invariants (the three above, plus no-downgrade,
-scope-in-as-a-floor, and verify-against-source) live in `engine/red-team-gate.js`'s header, so
-every gate inherits them; each gate skill carries only its rubric. `design-rt` uses the engine's
-built-in default preset; `test-rt` and `code-rt` override it.
+## Bounded progress
 
-### 4. Why split into missions
+Every batched station reports a denominator: decision nodes resolved/total, ACs represented/total,
+TDD clusters complete/total, missions done/total, gate fix-round/cap, or verification dimensions/5.
+If the total grows, the update states the old total, new total, and why. A sequence of decision batches
+must never feel unbounded to the user.
 
-Splitting a converged design into N missions isn't bureaucracy. A **mission** is an
-independently-executable, atomically-claimable unit — a self-contained contract (its Context and
-locked decisions, acceptance criteria, the four execution-safety sections — Commands / Open
-Assumptions / Stop Conditions / Parked Decisions — and a Verification Ledger) that survives session
-death. Two payoffs, in priority order:
+## Honest runtime limits
 
-- **Durability + review (the everyday reason).** Even run serially by one agent, each mission is a
-  reviewable checkpoint you can pass/reject and resume cold in a later session — persistent state
-  that ephemeral sub-agents can't give you. This is the primary reason a mission exists.
-- **Parallel fan-out (a bonus).** Because missions are independent and atomically claimable, they
-  *can* be handed to multiple agents/sessions at once — the throughput motivation they grew out of
-  (large decomposable work: refactors, audits, multi-file features). In practice that rarely
-  materializes, so the `mission` skill treats single-agent use as primary and explicitly warns
-  against *designing* your workflow around parallelism.
+Static review is not live acceptance. When a path requires a real launch, upgrade, device, browser interaction, or external environment, the reviewer must label that path unverified.
+
+Startup, first-upgrade, data-loss, security, and primary-interaction paths block when failure would make the result unusable or unsafe. Lower-risk runtime-only checks are handed to the user as explicit verification steps.
 
 ## Install
 
-### With `npx skills` (recommended)
-
-These skills follow the [open `skills` CLI](https://github.com/vercel-labs/skills) layout, so the
-`skills` CLI installs them into whatever agent you use (Claude Code, Cursor, Codex, …):
+These skills follow the open `skills` CLI repository layout.
 
 ```bash
-# install the whole family into the current project
-npx skills add wo52616111/skills
+# Replace OWNER with the GitHub account or organization hosting this repository
+# Install the complete collection into the current project
+npx skills add OWNER/skills
 
-# or a single skill
-npx skills add wo52616111/skills --skill code-rt
+# Install one skill
+npx skills add OWNER/skills --skill code-rt
 
-# user-level instead of project-level
-npx skills add wo52616111/skills -g
+# Install globally
+npx skills add OWNER/skills -g
 
-# target a specific agent
-npx skills add wo52616111/skills -a claude-code
+# Select a target agent
+npx skills add OWNER/skills -a claude-code
+
+# Preview the available skills
+npx skills add OWNER/skills --list
 ```
 
-Preview a repo's skills before installing with `npx skills add wo52616111/skills --list`.
+The CLI installs the `skills/<name>/SKILL.md` directories. The shared engine is separate because workflow-script installation is client-specific.
 
-The CLI auto-detects your agent and drops each `SKILL.md` into its skill directory. Manage them
-with `npx skills list` / `update` / `remove`.
+## Manual installation
 
-### Manual
+Copy any directory under `skills/` into the skill directory used by your agent. A single skill remains readable and usable on its own; references to sibling skills describe optional composition points.
 
-- **Skills**: copy the directories under `skills/` into your agent's skill directory (a
-  project-level or user-level `skills/` folder your agent loads). Copy just the ones you want —
-  they work standalone.
-- **Engine**: put `engine/red-team-gate.js` where your client discovers workflow scripts (consult
-  your client's docs for the exact directory). The gate is client-agnostic — with no workflow
-  runner, run the same red-team passes via your client's sub-agent primitive, or as sequential
-  fresh-context passes.
+For clients that support workflow scripts, copy the released `engine/red-team-gate.js` into the client's workflow location. Otherwise run the same rubric with fresh reviewer contexts and apply the route's signed `single` or `double` confirmation manually.
 
-## Using it
+## Durable files
 
-Once installed, invoke a skill by naming what you want:
+The methodology uses ordinary files and does not require a particular backend. A standalone project can use:
 
-- **`run the line`** (or `the line` / `follow the line`) — the full pipeline, adaptive mode: the
-  agent proposes a per-mission route.
-- **`the hard line`** — the full pipeline, forced mode: pin all applicable stations on.
-- **`walk me through this`** (or `walk it through`) — just the design/briefing stage.
-- **`code gate` / `test gate`** — run just that gate on a diff or a test file you already have.
+```text
+.workflow/
+  wip/
+  specs/
+  missions/
+```
 
-`the-line` also loads **automatically** for non-trivial work (multi-file / multi-repo, a behavior
-change, or genuinely new logic) even without the phrase — so you mostly get it by default; the
-phrases are how you explicitly *ask* for it (or a single skill).
+A local integration may map these roles to another task tracker, specification store, or mission system. The public skills describe roles and contracts rather than depending on one private tool.
 
-## Notes for adopters
+## Repository layout
 
-- These skills are **methodology**. Where one refers to a "durable doc", a "mission contract", or a
-  spec, it means *a file you keep*. Only `wip` fixes a default path (`.workflow/wip/`); the others
-  don't, so a parallel layout like `.workflow/specs/` and `.workflow/missions/` is just a sensible
-  convention, not a skill requirement. If your setup has a managed tool for these, wire the skill
-  to it; otherwise plain files work.
-- Each `SKILL.md` is self-contained and adoptable alone — the stations and gates reference each
-  other, so the full set is most useful together, but any one is a valid drop-in.
-- The gates assume your agent can spawn an **independent** sub-agent (a fresh context, not the
-  author). Without that primitive, run the confirming pass as a separate, clean-context turn.
+```text
+skills/
+  accept-rt/SKILL.md
+  bdd/SKILL.md
+  bdd-rt/SKILL.md
+  bdd-setup/SKILL.md
+  code-rt/SKILL.md
+  design-rt/SKILL.md
+  mission/SKILL.md
+  prove-done/SKILL.md
+  sdd/SKILL.md
+  tdd/SKILL.md
+  test-rt/SKILL.md
+  the-line/SKILL.md
+  walkthrough/SKILL.md
+  wip/SKILL.md
+engine/
+  red-team-gate.js
+README.md
+```
+
+## Public release safety
+
+A release should pass three gates before it is pushed publicly:
+
+1. Deterministic scan: block secrets, private identifiers, internal paths, and symlinks before copying anything.
+2. Semantic purity review: inspect the complete diff plus every untracked release file for contextual or narrative leaks that a denylist cannot recognize.
+3. Human review: read the final public diff and perform the irreversible push manually.
+
+The public repository is a one-way release mirror. Private bindings, machine-specific runners, credentials, internal paths, and personal work context do not belong here.
