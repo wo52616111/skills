@@ -11,6 +11,19 @@ description: >-
 
 # The Line: shortest sufficient delivery route
 
+## The fixed order
+
+For non-trivial logic the sequence is fixed and is not a menu:
+
+1. **TDD** — tests FIRST, before implementation.
+2. **test gate** (`test-rt`) — red-team the tests while implementation does not exist yet.
+3. **coding** — implement against those tests.
+4. **code gate** (`code-rt`) — red-team the implementation.
+
+Writing code before the tests, or running the code gate in place of the test gate,
+is not a lighter version of this — it removes the only point where the tests can still
+be judged on their own merits rather than on whether they happen to pass.
+
 ## Core rule
 
 `the-line` is a **dynamic route planner**, not a fixed ceremony checklist.

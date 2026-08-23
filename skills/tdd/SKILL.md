@@ -47,7 +47,10 @@ category-wide mandates:
 - `cost = test_setup_heavy + test_runtime_slow + requirement_instability`
 - Enable TDD when `benefit >= cost + 1`
 
-Before implementation, output: selected mode + why it applies + the benefit/cost breakdown (if `AUTO`).
+Before implementation, always determine the mode. Record it in the signed route/WIP when one exists.
+For non-trivial work, surface selected mode + reason and the benefit/cost breakdown when `AUTO` as part
+of the normal briefing. For simple coding work that needs no briefing or durable artifact, keep the
+applicability decision internal and proceed without a visible TDD ceremony.
 
 The line never installs a test framework merely to enable TDD. Missing tooling is a structural OFF
 reason. If the user separately requests test-harness initialization, handle that as explicit setup
@@ -115,11 +118,17 @@ On entering `DIAGNOSE`, include all of: `failure_signature` · `hypothesis` · `
 
 ## Decision 8: Spec × TDD Collaboration
 
-The requirements baseline (the spec) is human-owned; the work log records execution facts.
+The requirements baseline (the spec) is user-governed current truth; the WIP is the execution log.
+The user does not need to invoke SDD or ask for synchronization manually.
 
 - Treat the spec as source of truth for requirements, acceptance, and architecture intent.
-- The agent does not directly rewrite core spec content by default; if a spec change is needed, submit a proposal first (reason, impact, suggested text) and apply only after explicit user approval.
-- Auto-update the work log with high-value, decision-oriented, searchable execution facts — not a verbose noise dump.
+- Automatically keep the spec fresh when recording already-signed decisions, approved behavior,
+  validated current capabilities, canonical validation requirements/commands, or durable links; this
+  is synchronization, not a new product decision. In-flight implementation status, attempts, blockers,
+  and observed run results remain in WIP.
+- If coding evidence implies the product requirement/architecture contract itself should change,
+  propose that change first (reason, impact, suggested text) and apply only after user approval.
+- Auto-update the WIP with high-value execution facts, progress, and evidence — not a verbose noise dump.
 
 When BDD is ON, its gated scenarios are the outer behavior examples. TDD owns Automation: start from
 the failing executable scenario when available, then use inner unit/integration Red -> Green cycles.
@@ -149,9 +158,11 @@ The task's structured **acceptance criteria** are the gate's oracle — keep eac
 
 ## Standard Execution Flow
 
-Before the first cluster, report `clusters complete / planned clusters` and `ACs automated /
-applicable ACs`. Repeat the counters at every cluster boundary. If decomposition discovers more
-clusters or applicable ACs, report the old/new denominator and reason.
+For non-trivial work, durable/signed routes, or any plan with multiple clusters, report `clusters
+complete / planned clusters` and `ACs automated / applicable ACs` before the first cluster and at each
+boundary. If a simple no-artifact task is one internal cluster, keep counters internal unless scope
+changes or a blocker requires user attention. Whenever a reported denominator changes, state old/new
+values and the reason.
 
 1. Determine mode (`FORCE_ON`/`FORCE_OFF`/`AUTO`).
 2. If BDD is ON, map the current behavior scenario to its automation owner; then run Red → Green → Refactor in micro-slices.
@@ -160,8 +171,8 @@ clusters or applicable ACs, report the old/new denominator and reason.
 5. If blocked, switch to `DIAGNOSE` with the required output contract.
 6. Verify using progressive test scope (L1/L2/L3 as needed).
 7. Enforce pre-handoff gates (Gate 1/2/3).
-8. Update the work log with a high-value summary.
-9. Propose spec changes only when needed; do not auto-edit the spec baseline.
+8. When applicable, update WIP with a high-value execution summary and synchronize Spec with already-signed current truth; no-artifact work creates neither merely for bookkeeping.
+9. Propose only genuine requirement/architecture contract changes before applying them; routine freshness updates are automatic.
 
 ---
 

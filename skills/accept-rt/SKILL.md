@@ -9,8 +9,7 @@ description: >-
   walking every real user interaction. It exists because "compiles + tests pass + code-rt
   clean" does NOT mean "good to actually use", especially for UI/UX/product work whose runtime
   can't be fully exercised headlessly. Load when the signed route enables holistic pre-handoff
-  review, or on "accept-rt" / "acceptance gate" / "review it
-  like the user would" / "验收 red-team" / "别把破东西丢给我".
+  review, or on "accept-rt" / "acceptance gate" / "review it like the user would".
 ---
 
 # accept-rt: the holistic pre-handoff acceptance gate

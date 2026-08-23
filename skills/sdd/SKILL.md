@@ -58,7 +58,10 @@ Obsolete/replaced content, kept for git history. Agents never load `archive/` du
 2. IDENTIFY task type                → API? UI? data? validation?
 3. LOAD the relevant sub-spec        → e.g. api.md (150 lines)
 4. IF stuck / need context           → follow research links from spec.md
-5. UPDATE spec.md as work progresses → mark stories complete, update sequence
+5. SYNCHRONIZE durable truth after validated changes → update Current State, satisfied success criteria,
+   architecture/contracts, or the implementation sequence only when those facts actually changed.
+   Keep in-flight progress, attempts, blockers, and test-run evidence in WIP rather than turning Spec
+   into a progress journal.
 ```
 Typical context load: 300-600 lines (vs 9,000+ in a flat structure).
 
@@ -96,6 +99,28 @@ If your distribution ships spec templates, start from those instead of blank fil
 overlay may map their location).
 
 **Checklist**: spec.md ≤200 lines · sub-specs for major components · `research/index.md` if research exists · lowercase names · registered in the index · frontmatter version set.
+
+## Promoting an incubating WIP
+
+WIP and Spec are always evaluated together, but neither is mandatory for every task. Exploration may
+start in WIP. Promotion becomes required when current work locks durable product behavior, scope,
+architecture, external/data contracts, cross-component decisions, acceptance/BDD policy, or a roadmap
+that must survive the WIP; it must happen no later than design gate.
+
+1. Search for an existing governing Spec and update it when suitable; create/register a draft Spec
+   only when no current one owns the scope. If your specification store lives outside the
+   repository, a spec for a new app may exist before that repo does.
+2. Preserve Decision IDs, status, signed conclusions, and links; storage migration never reopens them.
+3. Move current truth by information type: overview into `spec.md`, component contracts into sub-specs,
+   durable rationale into ADRs, validation/BDD into `validation/`, evidence into `research/`.
+4. Replace the WIP's authoritative sections with stage, progress, Ledger OPEN count/current batch,
+   next actions, validation summaries, and an explicit Spec link.
+5. Verify that WIP and Spec do not retain two complete or conflicting copies. Continue the same
+   walkthrough/implementation against the Spec baseline.
+
+Do not promote merely because a WIP exists or a file is long. Small questions, mechanical work, and
+unresolved investigations may remain Spec N/A. When growth comes from multiple execution streams,
+split WIPs; when it comes from durable definition, promote to Spec/sub-specs.
 
 ## Handling Requirement Changes
 

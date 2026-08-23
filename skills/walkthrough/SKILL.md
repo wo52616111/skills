@@ -82,6 +82,29 @@ signed contract.
 
 ## What the agent does
 
+### 0. Select the canonical Definition artifact
+
+Before the first decision batch, classify the work by information type and durability, not merely by
+whether it is "in progress":
+
+```text
+Definition Artifact
+- canonical target: <existing/new spec | ADR under a spec | WIP exemption>
+- ownership reason: <durable-definition trigger or explicit exemption>
+- coordination WIP: <link or N/A>
+```
+
+Use a Spec/ADR when decisions establish durable product behavior, scope, success criteria,
+architecture, external/data contracts, cross-execution constraints, acceptance policy, or a roadmap
+that must remain true after the current work stream ends. A WIP exemption is valid for unresolved
+exploration or local execution decisions whose value ends with the WIP. The two are always considered
+together, but simple work may need neither and exploratory work may temporarily need only WIP.
+
+If an exploratory WIP crosses the durable-definition threshold during the walk, promote current truth
+to the governing Spec without changing Decision IDs/status or asking the user to re-decide. Leave only
+progress, OPEN count, next actions, evidence, and the canonical link in WIP; never keep two complete
+authoritative copies.
+
 ### 1. Do the homework first (silent)
 Before surfacing anything, explore the codebase and resolve everything you can on
 your own. **Any question answerable by reading the repo must be answered by reading
@@ -147,7 +170,7 @@ highest-altitude / highest-leverage first:
 4. **Implementation level** — only the details that carry real risk or are genuinely ambiguous.
 
 **Top-down because upstream decisions PRUNE downstream nodes.** Resolving a
-high-altitude node often deletes a whole cluster below it (pick "trail UI" and
+high-altitude node often deletes a whole cluster below it (pick "a single flat list" and
 every "menu layout / menu paging" node simply never becomes a question). So:
 - Walk the pruning nodes FIRST; never pre-expand a branch a pending upstream
   decision might delete (it wastes the user's attention and inflates the tree —
@@ -265,10 +288,11 @@ progress" always wins that bet. It relies on a written ledger + an independent r
 + a computed verdict.
 
 **5a. The Decision Ledger — a written artifact, not a mental map.** Step 2's map is
-maintained as a literal ledger in the work's **durable doc** (the task tracker / spec /
-plan doc), updated every round, with a live OPEN count. It carries across sessions: the
-next agent inherits "here are the still-OPEN nodes," not a decision-filled doc that merely
-*looks* finished. Required shape:
+maintained as a literal ledger in the canonical **Definition artifact selected in step 0**. Durable
+product/architecture/contract decisions belong in the governing Spec/ADR; a WIP-only Ledger requires
+an explicit exploratory/local exemption and must promote before design gate if that changes. The
+coordination WIP carries progress and a link, not a second authoritative copy. The Ledger is updated
+every round, with a live OPEN count, and carries across sessions:
 
 ```
 ## Decision Ledger  (OPEN: <n>)
@@ -445,7 +469,7 @@ update the brief, re-handshake.
 polling, with a way to peek a branch's chunk + reply inline or attach to the full
 session. Cross-tool branches (different agent runtimes) typically have **no** native
 coordination — files/git are the only bridge, so keep cross-tool handoff strictly
-file-based. (The concrete per-client mechanism lives in that client's binding.)
+file-based.
 
 **Close the same way:** a coordinator runs the step-5 completeness gate across ALL
 branch fragments together (catching cross-branch seams), then folds the single

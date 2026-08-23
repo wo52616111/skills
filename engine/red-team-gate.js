@@ -16,8 +16,11 @@
 // framingLines + findingsSchema + dimensions. The skills own those rubrics; the shared
 // invariants are canonical HERE (the SHARED GATE INVARIANTS block below).
 //
-// INSTALL: public adopters may copy the released engine artifact into the workflow directory
-// used by their client. Private integrations may instead symlink their own canonical source.
+// INSTALL: this file is a workflow-script BODY, not a standalone program. It uses top-level
+// `return` and expects its host to supply `args` plus `agent(prompt, options)`, `phase()` and
+// `log()`; running it with `node` fails at parse time. Unless your client already exposes that
+// contract, read it as a reference implementation of the convergence loop — every gate skill
+// states its own rubric fully enough to run by hand. See the adjacent README.
 //
 // COST RULE: a FAIL is cheap to trust (one real BLOCKING hole = not done → send back). A signed
 // `single` route accepts one fresh blocking-clean pass. A signed `double` route runs a 2nd fresh,

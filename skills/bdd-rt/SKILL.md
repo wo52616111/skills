@@ -130,6 +130,8 @@ Invoke the shared engine with:
 
 Every pass uses a fresh, sufficiently capable reviewer. `single` or `double` confirmation comes from
 the signed risk route; the hard line uses `double`. Passes for the same artifact remain sequential.
+An off-engine runner is a plain agent, so reproduce this rubric verbatim (framing + dimensions +
+findings schema).
 
 **CAP = 3 fix-rounds.** Every update reports `fix round / 3`, open blockers, and confirmation progress.
 At the cap with unresolved blockers, stop and escalate the remaining behavior conflicts to the user;

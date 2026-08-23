@@ -54,8 +54,9 @@ stage: <one-line current-state sentence — the single most useful field>
 - path/to/file.ext:42     (point at the real lines the work touches)
 
 ## Log            (optional)
-- the running decision/execution record: locked design decisions (e.g. a walkthrough's
-  Decision Ledger), and high-value execution facts worth carrying across sessions.
+- high-value execution facts, validation results, current Decision-Ledger progress/OPEN count,
+  and links to the canonical Spec/ADR. Exploratory decisions may live here temporarily, but locked
+  durable product/architecture truth must be promoted rather than duplicated.
 
 ## Related docs
 - specs, other WIPs, external links
@@ -82,8 +83,11 @@ cancelled (terminal)
 
 - **`stage` is the highest-value field** — keep it a fresh, one-line "current state" so anyone
   (including future-you) knows where things stand without reading the body. Update it every session.
-- **One current truth** — update the existing WIP in place; don't spawn parallel `-v2` docs.
-  Move substantial obsolete content out rather than letting it accumulate.
+- **One current work-state truth** — update the existing WIP in place; don't spawn parallel `-v2`
+  WIPs. Durable product truth belongs in the governing Spec/ADR, which the WIP links rather than copies.
+- **Always consider Spec with WIP** — a WIP does not mechanically require a Spec, but every WIP
+  create/update must ask whether any current durable behavior, architecture, contract, acceptance,
+  or roadmap belongs in an existing/new draft Spec. Small work and unresolved exploration may be Spec N/A.
 - **Checkboxes for tracked work** — use GFM `- [ ]` / `- [x]` in *To do* so completion is
   computable; don't mix checkbox items with prose bullets in the same list (the ratio becomes meaningless).
 - **Point at real code** — `path:line` in *Code locations*, so the next session navigates fast.
@@ -91,12 +95,18 @@ cancelled (terminal)
   pasting full command output.
 - **Resume-first** — on picking up work, read the WIP's `stage` + *To do* before anything else.
 
-## Splitting large work (parent / child)
+## Splitting or promoting large work
 
-If a WIP passes ~300 lines or spans clearly separable efforts, split it: a **parent** WIP plus
-**child** WIPs. A child links back with a `Parent: <slug>` line in *Related docs*; the parent
-lists its children there too. This is a **link convention, not an enforced hierarchy** — nothing
-cascades automatically; the link just lets a reader navigate.
+Classify why the WIP is growing before changing its shape:
+
+- Distinct execution streams, owners, blockers, or schedules -> split into a **parent WIP + child WIPs**.
+- Requirements, user behavior, architecture, contracts, durable decisions, acceptance/test policy, or
+  roadmap -> create/update the governing **Spec and sub-specs/ADRs**, then shrink the WIP to progress,
+  OPEN count, next actions, evidence, and links.
+
+A child links back with a `Parent: <slug>` line in *Related docs*; the parent lists its children too.
+This is a link convention, not an enforced hierarchy. Promotion is move-plus-link, not a second
+complete copy, and does not reopen already agreed decisions.
 
 ## End of life
 
@@ -116,9 +126,12 @@ follow its conventions where they differ.)*
 
 ## Relationship to other skills
 
-- **Holds the Decision Ledger** — the `walkthrough` skill's written Ledger lives in the work's
-  durable doc; the WIP's `## Log` section is its home.
-- **Referenced by missions** — each `mission` links back to a parent work item for context (via a
-  `Parent:` link); the WIP is the requirement-level record, missions are its execution sub-units.
-  (A link, not an enforced parent/child hierarchy.)
-- **Fed by tdd** — the `tdd` skill records high-value execution facts into the work log (`## Log`).
+- **Coordinates the Definition work** — WIP tracks walkthrough progress, OPEN count, current batch,
+  blockers, and the canonical Definition-artifact link. An exploratory Ledger may start in WIP, but
+  durable product/architecture/contract nodes move to the governing Spec/ADR no later than design gate.
+- **Paired conceptually with SDD** — every WIP operation evaluates whether a Spec is N/A, already
+  exists, or must be created/updated. The artifacts need not both exist for every task.
+- **Referenced by missions** — each `mission` links back to a parent work item for execution context;
+  the governing Spec/BDD artifact remains the requirement baseline when one applies.
+- **Fed by tdd** — `tdd` records high-value execution facts into the WIP log while treating the
+  Spec/BDD artifact as the durable behavior baseline.

@@ -167,7 +167,9 @@ The CLI installs the `skills/<name>/SKILL.md` directories. The shared engine is 
 
 Copy any directory under `skills/` into the skill directory used by your agent. A single skill remains readable and usable on its own; references to sibling skills describe optional composition points.
 
-For clients that support workflow scripts, copy the released `engine/red-team-gate.js` into the client's workflow location. Otherwise run the same rubric with fresh reviewer contexts and apply the route's signed `single` or `double` confirmation manually.
+The gates do not depend on the engine. Every `*-rt` skill carries its own full rubric, so the portable way to run one is to hand that rubric to fresh reviewer contexts yourself and apply the route's signed `single` or `double` confirmation by hand.
+
+`engine/red-team-gate.js` automates that loop, but it is **not a standalone program** and `node engine/red-team-gate.js` will not run it. The file is a workflow-script *body*: it uses top-level `return`, and it expects its host to supply `args` along with three functions — `agent(prompt, options)`, which spawns an independent reviewer context and returns its structured result, plus `phase()` and `log()` for progress reporting. This repository does not specify that host API, so unless your client already exposes that exact contract, read the engine as a reference implementation of the convergence loop rather than as something you can drop in.
 
 ## Durable files
 
@@ -203,6 +205,7 @@ skills/
 engine/
   red-team-gate.js
 README.md
+LICENSE
 ```
 
 ## Public release safety
